@@ -29,7 +29,7 @@ then
         docker-compose \
             run --rm batch \
             bash -c \
-            "java -cp /opt/raster-foundry/jars/rf-batch.jar com.azavea.rf.batch.Main healthcheck"
+            "java -cp /opt/raster-foundry/jars/batch-assembly.jar com.rasterfoundry.batch.Main healthcheck"
 
         echo "Updating Scala dependencies"
         docker-compose \

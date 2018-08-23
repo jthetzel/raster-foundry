@@ -117,8 +117,8 @@ def execute_local_ingest_job(scene_id, ingest_s3_uri):
     command = ['spark-submit',
                '--master', 'local[{}]'.format(ingest_cores),
                '--driver-memory', '{}g'.format(ingest_memory),
-               '--class', 'com.azavea.rf.batch.ingest.spark.Ingest',
-               '/opt/raster-foundry/jars/rf-batch.jar',
+               '--class', 'com.rasterfoundry.batch.ingest.spark.Ingest',
+               '/opt/raster-foundry/jars/batch-assembly.jar',
                '-t', '--overwrite', '-s', scene_id, '-j', ingest_s3_uri
     ]
     subprocess.check_call(command)
@@ -153,7 +153,7 @@ def execute_ingest_emr_job(scene_id, ingest_s3_uri, ingest_def_id, cluster_id):
                      '--conf',
                      'spark.yarn.submit.waitAppCompletion=false',
                      '--class',
-                     'com.azavea.rf.batch.ingest.spark.Ingest',
+                     'com.rasterfoundry.batch.ingest.spark.Ingest',
                      's3://rasterfoundry-global-artifacts-us-east-1/batch/{}'.format(BATCH_JAR_PATH),
                      '-t',
                      '--overwrite',
@@ -218,8 +218,8 @@ def metadata_to_postgres(uri, scene_id):
     """
     bash_cmd = [
         'java', '-cp',
-        '/opt/raster-foundry/jars/rf-batch.jar',
-        'com.azavea.rf.batch.Main',
+        '/opt/raster-foundry/jars/batch-assembly.jar',
+        'com.rasterfoundry.batch.Main',
         'migration_s3_postgres',
         uri,
         'layer_attributes',
@@ -242,8 +242,8 @@ def notify_for_scene_ingest_status(scene_id):
 
     bash_cmd = [
         'java', '-cp',
-        '/opt/raster-foundry/jars/rf-batch.jar',
-        'com.azavea.rf.batch.Main',
+        '/opt/raster-foundry/jars/batch-assembly.jar',
+        'com.rasterfoundry.batch.Main',
         'notify_ingest_status',
         scene_id
     ]
