@@ -1,11 +1,11 @@
-package com.azavea.rf.tile.image
+package com.rasterfoundry.tile.image
 
-import com.azavea.rf.common.utils.{CogUtils, TileUtils}
-import com.azavea.rf.common.cache.CacheClient
-import com.azavea.rf.database.Implicits._
-import com.azavea.rf.database.{SceneDao, SceneToProjectDao}
-import com.azavea.rf.datamodel.{ColorRampMosaic, MosaicDefinition, Project, SceneType, SingleBandOptions}
-import com.azavea.rf.tile._
+import com.rasterfoundry.common.utils.{CogUtils, TileUtils}
+import com.rasterfoundry.common.cache.CacheClient
+import com.rasterfoundry.database.Implicits._
+import com.rasterfoundry.database.{SceneDao, SceneToProjectDao}
+import com.rasterfoundry.datamodel.{ColorRampMosaic, MosaicDefinition, Project, SceneType, SingleBandOptions}
+import com.rasterfoundry.tile._
 import com.typesafe.scalalogging.LazyLogging
 import cats.data._
 import cats.implicits._
@@ -27,7 +27,7 @@ import geotrellis.vector.{Extent, Polygon, Projected}
 import scala.concurrent._
 import java.util.UUID
 
-import com.azavea.rf.database.util.RFTransactor
+import com.rasterfoundry.database.util.RFTransactor
 
 
 object SingleBandMosaic extends LazyLogging with KamonTrace {

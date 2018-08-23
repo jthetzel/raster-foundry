@@ -1,6 +1,6 @@
-package com.azavea.rf.batch.ingest.spark
+package com.rasterfoundry.batch.ingest.spark
 
-import com.azavea.rf.batch.ingest.model._
+import com.rasterfoundry.batch.ingest.model._
 
 import geotrellis.raster._
 import geotrellis.raster.testkit._

@@ -1,7 +1,7 @@
-package com.azavea.rf.common.cache
+package com.rasterfoundry.common.cache
 
 
-import com.azavea.rf.common.{Config, RfStackTrace, RollbarNotifier}
+import com.rasterfoundry.common.{Config, RfStackTrace, RollbarNotifier}
 import java.util.concurrent.Executors
 import net.spy.memcached._
 

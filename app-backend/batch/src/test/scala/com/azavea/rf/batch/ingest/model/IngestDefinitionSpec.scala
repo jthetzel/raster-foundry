@@ -1,6 +1,6 @@
-package com.azavea.rf.batch.ingest.model
+package com.rasterfoundry.batch.ingest.model
 
-import com.azavea.rf.batch.BatchSpec
+import com.rasterfoundry.batch.BatchSpec
 import io.circe.parser._
 import org.scalatest._
 

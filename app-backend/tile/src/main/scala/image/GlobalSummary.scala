@@ -1,9 +1,9 @@
-package com.azavea.rf.tile.image
+package com.rasterfoundry.tile.image
 
-import com.azavea.rf.tile._
-import com.azavea.rf.datamodel.{MosaicDefinition, SceneType}
-import com.azavea.rf.database.util.RFTransactor
-import com.azavea.rf.common.utils.{RangeReaderUtils, CogUtils}
+import com.rasterfoundry.tile._
+import com.rasterfoundry.datamodel.{MosaicDefinition, SceneType}
+import com.rasterfoundry.database.util.RFTransactor
+import com.rasterfoundry.common.utils.{RangeReaderUtils, CogUtils}
 import geotrellis.raster._
 import geotrellis.vector.io._
 import geotrellis.spark.io._

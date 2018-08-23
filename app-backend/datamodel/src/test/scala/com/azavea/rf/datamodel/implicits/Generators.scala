@@ -1,6 +1,6 @@
-package com.azavea.rf.datamodel
+package com.rasterfoundry.datamodel
 
-import com.azavea.rf.datamodel._
+import com.rasterfoundry.datamodel._
 
 import geotrellis.vector.{MultiPolygon, Point, Polygon, Projected}
 import geotrellis.vector.testkit.Rectangle
