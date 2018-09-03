@@ -23,8 +23,9 @@ def create_cog(image_locations, scene):
         cog.fetch_imagery(image_locations, local_dir)
         warped_paths = cog.warp_tifs(dsts, local_dir)
         merged_tif = cog.merge_tifs(warped_paths, local_dir)
-        cog.add_overviews(merged_tif)
-        cog_path = cog.convert_to_cog(merged_tif, local_dir)
+        overviews_path = cog.add_overviews(merged_tif)
+        cog.add_metadata_from_base(overviews_path, merged_tif)
+        cog_path = cog.convert_to_cog(overviews_path, local_dir)
         updated_scene = upload_tif(cog_path, scene)
         updated_scene.update()
 
