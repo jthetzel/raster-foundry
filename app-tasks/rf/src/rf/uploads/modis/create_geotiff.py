@@ -75,6 +75,7 @@ def create_geotiffs(modis_path, local_dir):
     warped_paths = cog.warp_tifs(tifs, local_dir)
     merged_tif = cog.merge_tifs(warped_paths, local_dir)
     warp_tif(merged_tif, post_web_mercator_path)
-    cog.add_overviews(post_web_mercator_path)
-    cog_path = cog.convert_to_cog(post_web_mercator_path, local_dir)
+    overviews_path = cog.add_overviews(post_web_mercator_path)
+    cog.add_metadata_from_base(overviews_path, merged_tif)
+    cog_path = cog.convert_to_cog(overviews_path, local_dir)
     return [cog_path]

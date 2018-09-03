@@ -6,8 +6,10 @@ from rf.ingest.settings import (landsat8_band_order, sentinel2_band_order,
 from rf.utils.io import s3_bucket_and_key_from_url
 
 import boto3
+from pyproj import Proj, transform
 import rasterio
 
+import json
 import logging
 from multiprocessing import (cpu_count, Pool)
 import os
@@ -22,10 +24,48 @@ logger = logging.getLogger(__name__)
 def add_overviews(tif_path):
     logger.info('Adding overviews to %s', tif_path)
     overviews_command = [
-        'gdaladdo', '-r', 'average', '--config', 'COMPRESS_OVERVIEW', 'LZW',
-        tif_path
+        'gdaladdo', '-ro', '-r', 'average', '--config', 'COMPRESS_OVERVIEW', 'LZW',
+        tif_path,
+        '1', '2', '4', '8', '16', '32', '64'
     ]
     subprocess.check_call(overviews_command)
+    return tif_path + '.ovr'
+
+
+def add_metadata_from_base(wo_metadata, base):
+    """Add georeferencing information from a base tif, since overviews lack it
+    """
+
+    logger.info('Adding georeferencing to overviews at %s from %s', wo_metadata, base)
+
+    gdalinfo_json = json.loads(
+        subprocess.check_output(['gdalinfo', '-proj4', '-json', base])
+    )
+    metadata_cmd = build_metadata_cmd(gdalinfo_json, wo_metadata)
+    subprocess.check_call(metadata_cmd)
+
+
+def build_metadata_cmd(gdalinfo_json, wo_metadata_path):
+    """Build a command to add georeferencing metadata using gdalinfo json output
+    """
+
+    wgs84_extent = gdalinfo_json['wgs84Extent']['coordinates']
+    target_proj = Proj(init='EPSG:3857')
+    src_proj = Proj(init='EPSG:4326')
+    points = [
+        transform(src_proj, target_proj, x, y) for x, y in wgs84_extent[0]
+    ]
+    ulx = min([p[0] for p in points])
+    uly = min([p[1] for p in points])
+    urx = max([p[0] for p in points])
+    ury = max([p[1] for p in points])
+    return [
+        'gdal_edit.py',
+        '-a_srs', target_proj.srs,
+        '-a_ullr', str(ulx), str(uly), str(urx), str(ury),
+        '-stats',
+        wo_metadata_path
+    ]
 
 
 def convert_to_cog(tif_with_overviews_path, local_dir):
