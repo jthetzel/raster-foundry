@@ -45,6 +45,10 @@ object ProjectDao extends Dao[Project] {
 
   type SceneToProject = (UUID, UUID, Boolean, Option[Int], Option[Json])
 
+  implicit val getProjectPermissions: ObjectPermissions[Dao[Project]] = new ObjectPermissions[Dao[Project]] {
+      def tableName = ProjectDao.tableName
+  }
+
   def unsafeGetProjectById(projectId: UUID): ConnectionIO[Project] = {
     val idFilter = Some(fr"id = ${projectId}")
 

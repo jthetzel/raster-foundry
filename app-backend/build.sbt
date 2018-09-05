@@ -211,7 +211,8 @@ lazy val db = Project("db", file("db"))
        "net.postgis" % "postgis-jdbc-jtsparser" % "2.2.1",
        "org.locationtech.jts" % "jts-core" % "1.15.0",
        "com.lonelyplanet" %% "akka-http-extensions" % "0.4.15",
-       Dependencies.geotrellisSlick.exclude("postgresql", "postgresql")
+       Dependencies.geotrellisSlick.exclude("postgresql", "postgresql"),
+       Dependencies.simulacrum
      )
   })
 

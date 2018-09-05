@@ -84,4 +84,5 @@ object Dependencies {
   val slickPGSpray            = "com.github.tminglei"         %% "slick-pg_spray-json"               % Version.slickPG
   val spark                   = "org.apache.spark"            %% "spark-core"                        % Version.spark % "provided"
   val sparkCore               = "org.apache.spark"            %% "spark-core"                        % Version.spark
+  val simulacrum              = "com.github.mpilquist"        %% "simulacrum"                        % Version.simulacrum
 }
