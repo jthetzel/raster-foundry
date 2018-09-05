@@ -45,7 +45,7 @@ object ProjectDao extends Dao[Project] {
 
   type SceneToProject = (UUID, UUID, Boolean, Option[Int], Option[Json])
 
-  implicit val getProjectPermissions: ObjectPermissions[Dao[Project]] = new ObjectPermissions[Dao[Project]] {
+  implicit val getProjectPermissions: ObjectPermissions[ProjectDao.type] = new ObjectPermissions[ProjectDao.type] {
       def tableName = ProjectDao.tableName
   }
 

@@ -17,7 +17,7 @@ import java.util.UUID
 @typeclass trait ObjectPermissions[A] {
   def tableName: String
 
-  def getPermissions(id: UUID): ConnectionIO[List[Option[ObjectAccessControlRule]]] =
+  @op("getPermissions") def getPermissions(id: UUID): ConnectionIO[List[Option[ObjectAccessControlRule]]] =
     (Fragment.const(s"SELECT acrs FROM ${tableName}") ++ Fragments.whereAndOpt(Some(fr"id = ${id}")))
     .query[List[String]]
     .unique
