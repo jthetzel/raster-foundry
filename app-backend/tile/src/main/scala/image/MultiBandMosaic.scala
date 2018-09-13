@@ -12,6 +12,7 @@ import com.azavea.rf.datamodel.{
 }
 import com.azavea.rf.common.cache.CacheClient
 import geotrellis.raster._
+import geotrellis.raster.resample._
 import geotrellis.raster.io.geotiff.MultibandGeoTiff
 import geotrellis.spark._
 import geotrellis.spark.io._
@@ -185,7 +186,8 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
   def rawForExtent(projectId: UUID,
                    zoom: Int,
                    bbox: Option[Projected[Polygon]],
-                   doColorCorrect: Boolean)(
+                   doColorCorrect: Boolean,
+                   bandSelect: Option[Int] = None)(
       implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] = {
     OptionT(mosaicDefinition(projectId).flatMap { mosaic =>
       val sceneIds = mosaic.map {
@@ -197,19 +199,55 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
                                       bbox,
                                       zoom,
                                       None,
-                                      doColorCorrect)
+                                      doColorCorrect,
+                                      bandSelect)
 
       val futureMergeTile: Future[Option[MultibandTile]] =
-        mayhapTiles.map { tiles =>
-          if (tiles.nonEmpty)
-            Option(tiles.reduce(_ merge _))
-          else
-            Option.empty[MultibandTile]
+        mayhapTiles.map {
+          tiles =>
+            {
+              // 1000 is a lot of bands right
+              // foldLeft for a single traversal to get min, which I think is better than
+              // .map(_).min
+              val minBands = tiles.foldLeft(Int.MaxValue)(
+                (currMin, tile) => {
+                  val nBands = tile.bands.length
+                  if (currMin < nBands) currMin else nBands
+                }
+              )
+              def subsetter = maybeSubset(bandSelect, minBands) _
+              if (tiles.nonEmpty)
+                Option(
+                  tiles.reduce(
+                    (tile1: MultibandTile, tile2: MultibandTile) => {
+                      val subset1 =
+                        if (tile1.bands.length > minBands || !bandSelect.isEmpty)
+                          subsetter(tile1)
+                        else
+                          tile1
+                      val subset2 =
+                        if (tile2.bands.length > minBands || !bandSelect.isEmpty)
+                          subsetter(tile2)
+                        else
+                          tile2
+                      subset1 merge subset2
+                    }
+                  )
+                )
+              else
+                Option.empty[MultibandTile]
+            }
         }
 
       futureMergeTile
     })
   }
+
+  def maybeSubset(bandSelect: Option[Int], minBands: Int)(
+      tile: MultibandTile): MultibandTile =
+    bandSelect map { tile.subsetBands(_) } getOrElse {
+      tile.subsetBands(0 to (minBands - 1): _*)
+    }
 
   /** Fetch all bands of a [[MultibandTile]] and return them without assuming anything of their semantics */
   def raw(projectId: UUID, zoom: Int, col: Int, row: Int)(
@@ -260,7 +298,8 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
       projectId: UUID,
       zoomOption: Option[Int],
       bboxOption: Option[String],
-      colorCorrect: Boolean = true
+      colorCorrect: Boolean = true,
+      bandSelect: Option[Int] = None
   )(
       implicit xa: Transactor[IO]
   ): OptionT[Future, MultibandTile] = {
@@ -282,7 +321,7 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
 
     OptionT(
       mergeTiles(
-        renderForBbox(md, polygonBbox, zoom, None)
+        renderForBbox(md, polygonBbox, zoom, None, bandSelect = bandSelect)
       )
     )
   }
@@ -295,7 +334,8 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
       projectId: UUID,
       zoom: Int,
       col: Int,
-      row: Int
+      row: Int,
+      bandSelect: Option[Int] = None
   )(
       implicit xa: Transactor[IO]
   ): OptionT[Future, MultibandTile] =
@@ -312,7 +352,9 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
           renderForBbox(md,
                         Some(polygonBbox),
                         zoom,
-                        Some(s"${zoom}-${col}-${row}"))
+                        Some(s"${zoom}-${col}-${row}"),
+                        false,
+                        bandSelect)
         )
       )
     }
@@ -380,8 +422,9 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
       bbox: Option[Projected[Polygon]],
       zoom: Int,
       cacheKey: Option[String],
-      colorCorrect: Boolean = true
-  ): Future[Seq[MultibandTile]] =
+      colorCorrect: Boolean = true,
+      bandSelect: Option[Int] = None
+  ): Future[Seq[MultibandTile]] = {
     mds.flatMap { mosaic: Seq[MosaicDefinition] =>
       {
         val sceneIds = mosaic.map {
@@ -400,7 +443,8 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
                              colorCorrect,
                              sceneId,
                              colorCorrectParams,
-                             ingestLocation)
+                             ingestLocation,
+                             bandSelect)
               case (Some(ingestLocation), _) => {
                 MultiBandMosaic
                   .fetchRenderedExtent(sceneId, zoom, bbox)
@@ -421,20 +465,22 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
                 rfCache.cachingOptionT(s"tile-rendered-${sceneId}-${key}")(tile)
               case _ =>
             }
-            tile
+            tile map { _.resample(256, 256, Average) }
           }
         }
         Future.traverse(tiles)(_.value).map(_.flatten)
       }
     }
+  }
 
-  def fetchCogTile(bbox: Option[Projected[Polygon]],
-                   zoom: Int,
-                   colorCorrect: Boolean,
-                   sceneId: UUID,
-                   colorCorrectParams: ColorCorrect.Params,
-                   ingestLocation: String): OptionT[Future, MultibandTile] = {
-
+  def fetchCogTile(
+      bbox: Option[Projected[Polygon]],
+      zoom: Int,
+      colorCorrect: Boolean,
+      sceneId: UUID,
+      colorCorrectParams: ColorCorrect.Params,
+      ingestLocation: String,
+      bandSelect: Option[Int] = None): OptionT[Future, MultibandTile] = {
     val extent: Option[Extent] = bbox.map { poly =>
       poly.geom.envelope
     }
@@ -442,24 +488,30 @@ object MultiBandMosaic extends LazyLogging with KamonTrace {
     val cacheKey = extent match {
       case Some(e) =>
         s"scene-bbox-${sceneId}-${zoom}-${e.xmin}-${e.ymin}-${e.xmax}-${e.ymax}-${CryptoUtils
-          .sha1(colorCorrectParams.toString)}"
+          .sha1(colorCorrectParams.toString)}-${bandSelect.map(_.toString).getOrElse("all-bands")}"
       case _ =>
         s"scene-bbox-${sceneId}-${zoom}-no-extent-${CryptoUtils.sha1(colorCorrectParams.toString)}"
     }
 
     rfCache.cachingOptionT(cacheKey)(
       CogUtils.fromUri(ingestLocation).flatMap { tiff =>
-        CogUtils.cropForZoomExtent(tiff, zoom, extent).flatMap {
-          cropped: MultibandTile =>
-            if (colorCorrect) {
-              rfCache
-                .cachingOptionT(s"hist-tiff-${sceneId}") {
-                  OptionT.liftF(Future(CogUtils.geoTiffHistogram(tiff)))
-                }
-                .semiflatMap { histogram =>
-                  Future(colorCorrectParams.colorCorrect(cropped, histogram))
-                }
-            } else OptionT.pure[Future](cropped)
+        {
+          CogUtils.cropForZoomExtent(tiff, zoom, extent, bandSelect).flatMap {
+            cropped: MultibandTile =>
+              {
+                logger.debug(s"Cropped the tif for $cacheKey")
+                if (colorCorrect) {
+                  rfCache
+                    .cachingOptionT(s"hist-tiff-${sceneId}") {
+                      OptionT.liftF(Future(CogUtils.geoTiffHistogram(tiff)))
+                    }
+                    .semiflatMap { histogram =>
+                      Future(
+                        colorCorrectParams.colorCorrect(cropped, histogram))
+                    }
+                } else OptionT.pure[Future](cropped)
+              }
+          }
         }
       }
     )

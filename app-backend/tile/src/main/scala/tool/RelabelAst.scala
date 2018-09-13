@@ -29,9 +29,7 @@ object RelabelAst {
           SceneDao.query
             .filter(sceneId)
             .selectOption
-            .transact(xa)
-            .unsafeToFuture
-            .map { maybeScene: Option[Scene] =>
+            .map((maybeScene: Option[Scene]) =>
               maybeScene match {
                 case Some(scene) =>
                   scene.sceneType match {
@@ -47,9 +45,11 @@ object RelabelAst {
                     case _ => None
                   }
                 case _ => None
-              }
-            }
-        case _ => Future.successful(None)
+            })
+            .transact(xa)
+            .unsafeToFuture
+        case _ =>
+          Future.successful(None)
       }
 
     sources.sequence.map { maybeSources =>

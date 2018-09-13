@@ -436,7 +436,10 @@ class TileResolver(xaa: Transactor[IO], ec: ExecutionContext)
           Invalid(NEL.of(NonEvaluableNode(fullExp, Some("no band given")))))
       case pr @ ProjectRaster(projId, Some(band), celltype) =>
         Mosaic
-          .rawForExtent(projId, zoom, Some(Projected(extent.toPolygon, 3857)))
+          .rawForExtent(projId,
+                        zoom,
+                        Some(Projected(extent.toPolygon, 3857)),
+                        bandSelect = Some(band))
           .value
           .map({ maybeTile =>
             maybeTile match {
@@ -453,13 +456,16 @@ class TileResolver(xaa: Transactor[IO], ec: ExecutionContext)
         Future.successful(
           Invalid(NEL.of(NonEvaluableNode(fullExp, Some("no band given")))))
 
-      case cr @ CogRaster(_, Some(band), celltype, location) =>
+      case cr @ CogRaster(id, bandSelect @ Some(_), celltype, location) =>
+        logger.debug(s"Trying to crop for zoom extent for $id")
         CogUtils
           .fromUri(location)
           .flatMap { tiff =>
+            // Subsetting happens in cropForZoomExtent, so the band of interest is always the first
+            // band
             CogUtils.cropForZoomExtent(tiff, zoom, Some(extent)).map {
               tile: MultibandTile =>
-                tile.band(band).interpretAs(celltype.getOrElse(tile.cellType))
+                tile.band(0).interpretAs(celltype.getOrElse(tile.cellType))
             }
           }
           .value

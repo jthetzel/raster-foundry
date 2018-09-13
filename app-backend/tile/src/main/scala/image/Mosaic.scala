@@ -39,7 +39,8 @@ object Mosaic extends LazyLogging with KamonTrace {
       projectId: UUID,
       zoom: Int,
       col: Int,
-      row: Int
+      row: Int,
+      bandSelect: Option[Int]
   )(implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] =
     traceName(s"Mosaic.apply($projectId)") {
       OptionT(
@@ -54,7 +55,7 @@ object Mosaic extends LazyLogging with KamonTrace {
             SingleBandMosaic(project, zoom, col, row)
           case false =>
             logger.debug(s"Constructing MultiBand Mosaic ${project}")
-            MultiBandMosaic(projectId, zoom, col, row)
+            MultiBandMosaic(projectId, zoom, col, row, bandSelect)
         }
       }
     }
@@ -64,7 +65,8 @@ object Mosaic extends LazyLogging with KamonTrace {
       zoom: Int,
       col: Int,
       row: Int,
-      isScene: Boolean
+      isScene: Boolean,
+      bandSelect: Option[Int]
   )(implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] =
     traceName(s"Mosaic.apply($id)") {
       if (isScene) {
@@ -78,7 +80,7 @@ object Mosaic extends LazyLogging with KamonTrace {
           MultiBandMosaic(id, zoom, col, row, true)
         }
       } else {
-        apply(id, zoom, col, row)
+        apply(id, zoom, col, row, bandSelect)
       }
     }
 
@@ -90,16 +92,18 @@ object Mosaic extends LazyLogging with KamonTrace {
       redBand: Int,
       greenBand: Int,
       blueBand: Int
-  )(implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] =
+  )(implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] = {
     traceName(s"Mosaic.apply($projectId)") {
       MultiBandMosaic(projectId, zoom, col, row, redBand, greenBand, blueBand)
     }
+  }
 
   def render(
       projectId: UUID,
       zoomOption: Option[Int],
       bboxOption: Option[String],
-      colorCorrect: Boolean
+      colorCorrect: Boolean,
+      bandSelect: Option[Int]
   )(implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] = {
     OptionT(
       ProjectDao.query
@@ -111,7 +115,11 @@ object Mosaic extends LazyLogging with KamonTrace {
         if (project.isSingleBand) {
           SingleBandMosaic.render(project, zoomOption, bboxOption, true)
         } else {
-          MultiBandMosaic.render(projectId, zoomOption, bboxOption, true)
+          MultiBandMosaic.render(projectId,
+                                 zoomOption,
+                                 bboxOption,
+                                 true,
+                                 bandSelect = bandSelect)
         }
       } else {
         val bboxPolygon: Option[Projected[Polygon]] =
@@ -126,7 +134,10 @@ object Mosaic extends LazyLogging with KamonTrace {
                 "Four comma separated coordinates must be given for bbox")
                 .initCause(e)
           }
-        rawForExtent(projectId, zoomOption.getOrElse(8), bboxPolygon)
+        rawForExtent(projectId,
+                     zoomOption.getOrElse(8),
+                     bboxPolygon,
+                     bandSelect)
       }
     }
   }
@@ -145,20 +156,25 @@ object Mosaic extends LazyLogging with KamonTrace {
   def rawForExtent(
       projectId: UUID,
       zoom: Int,
-      bbox: Option[Projected[Polygon]]
+      bbox: Option[Projected[Polygon]],
+      bandSelect: Option[Int]
   )(implicit xa: Transactor[IO]): OptionT[Future, MultibandTile] = {
     bbox match {
       case Some(polygon) => {
         val key = s"mosaic-extent-raw-$projectId-$zoom-${polygon.geom.envelope.xmax}-" +
-          s"${polygon.geom.envelope.ymax}-${polygon.geom.envelope.xmin}-${polygon.geom.envelope.ymin}"
+          s"${polygon.geom.envelope.ymax}-${polygon.geom.envelope.xmin}-${polygon.geom.envelope.ymin}-${bandSelect map {
+            "band-" + _.toString
+          } getOrElse { "no-band" }}"
         rfCache.cachingOptionT(key) {
-          MultiBandMosaic.rawForExtent(projectId, zoom, bbox, false)
+          MultiBandMosaic.rawForExtent(projectId, zoom, bbox, false, bandSelect)
         }
       }
       case _ => {
-        val key = s"mosaic-extent-raw-$projectId-$zoom-nobbox"
+        val key = s"mosaic-extent-raw-$projectId-$zoom-nobbox-${bandSelect map {
+          "band-" + _.toString
+        } getOrElse { "no-band" }}"
         rfCache.cachingOptionT(key) {
-          MultiBandMosaic.rawForExtent(projectId, zoom, bbox, false)
+          MultiBandMosaic.rawForExtent(projectId, zoom, bbox, false, bandSelect)
         }
       }
     }

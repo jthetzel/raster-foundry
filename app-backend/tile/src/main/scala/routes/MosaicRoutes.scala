@@ -76,7 +76,8 @@ object MosaicRoutes extends LazyLogging with KamonTrace {
                       val mosaic = Mosaic.render(projectId,
                                                  zoom,
                                                  Option(bbox),
-                                                 colorCorrect)
+                                                 colorCorrect,
+                                                 None)
                       val poly =
                         Projected(Extent.fromString(bbox).toPolygon(), 4326)
                           .reproject(LatLng, WebMercator)(3857)
@@ -89,7 +90,11 @@ object MosaicRoutes extends LazyLogging with KamonTrace {
                         .value
                     case _ =>
                       Mosaic
-                        .render(projectId, zoom, Option(bbox), colorCorrect)
+                        .render(projectId,
+                                zoom,
+                                Option(bbox),
+                                colorCorrect,
+                                None)
                         .map(_.renderPng)
                         .map(pngAsHttpResponse)
                         .value
@@ -125,7 +130,7 @@ object MosaicRoutes extends LazyLogging with KamonTrace {
             val mosaic = (redband, greenBand, blueBand) match {
               case (Some(red), Some(green), Some(blue)) =>
                 Mosaic(projectId, zoom, x, y, red, green, blue)
-              case _ => Mosaic(projectId, zoom, x, y)
+              case _ => Mosaic(projectId, zoom, x, y, None)
             }
             val future = mosaic
               .map(_.renderPng)
@@ -151,7 +156,7 @@ object MosaicRoutes extends LazyLogging with KamonTrace {
         complete {
           val future =
             timedFuture("tile-zxy")(
-              Mosaic(sceneId, zoom, x, y, true)
+              Mosaic(sceneId, zoom, x, y, true, None)
                 .map(_.renderPng)
                 .getOrElse(emptyTilePng)
                 .map(pngAsHttpResponse)

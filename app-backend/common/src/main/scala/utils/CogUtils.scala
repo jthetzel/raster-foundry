@@ -5,6 +5,7 @@ import com.azavea.rf.common.cache.kryo._
 import com.azavea.rf.common.{Config => CommonConfig}
 
 import com.amazonaws.services.s3.AmazonS3URI
+import com.typesafe.scalalogging.LazyLogging
 import geotrellis.vector._
 import geotrellis.raster._
 import geotrellis.raster.crop._
@@ -31,7 +32,7 @@ import cats.implicits._
 import scala.concurrent._
 import java.net.URLDecoder
 
-object CogUtils {
+object CogUtils extends LazyLogging {
   lazy val cacheConfig = CommonConfig.memcached
   lazy val memcachedClient = KryoMemcachedClient.default
   lazy val rfCache = new CacheClient(memcachedClient)
@@ -219,7 +220,8 @@ object CogUtils {
 
   def cropForZoomExtent(tiff: GeoTiff[MultibandTile],
                         zoom: Int,
-                        extent: Option[Extent])(
+                        extent: Option[Extent],
+                        bandSelect: Option[Int] = None)(
       implicit ec: ExecutionContext): OptionT[Future, MultibandTile] = {
     val transform = Proj4Transform(tiff.crs, WebMercator)
     val inverseTransform = Proj4Transform(WebMercator, tiff.crs)
@@ -227,11 +229,25 @@ object CogUtils {
       extent.getOrElse(tiff.extent.reproject(tiff.crs, WebMercator))
     val tmsTileRE =
       RasterExtent(extent = actualExtent, cellSize = TmsLevels(zoom).cellSize)
+    logger.debug("Constructed raster extent")
     val tiffTileRE = ReprojectRasterExtent(tmsTileRE, inverseTransform)
     val overview = closestTiffOverview(tiff, tiffTileRE.cellSize, Auto(0))
-
-    OptionT(Future(cropGeoTiff(overview, tiffTileRE.extent).map { raster =>
-      raster.reproject(tmsTileRE, transform, inverseTransform).tile
+    logger.debug("Found closest overview")
+    // If we only want one band, construct a new geotiff with just that band to avoid doing
+    // more expensive operations like resampling and cacheing on potentially 13 bands like
+    // MODIS and Sentinel-2 have
+    val subsetOverview = bandSelect map { band =>
+      val subset =
+        GeoTiff(overview.tile.subsetBands(band), overview.extent, overview.crs)
+      logger.debug("Subset overview to band of interest")
+      subset
+    } getOrElse overview
+    val croppedOverview = cropGeoTiff(subsetOverview, tiffTileRE.extent)
+    logger.debug("Cropped overview")
+    OptionT(Future(croppedOverview map { raster =>
+      val reprojected = raster.reproject(tmsTileRE, transform, inverseTransform)
+      logger.debug("Reprojected cropped raster")
+      reprojected.tile
     }))
   }
 
