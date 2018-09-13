@@ -53,8 +53,8 @@ object RelabelAst {
       }
 
     sources.sequence.map { maybeSources =>
-      val subsitutions = maybeSources.flatten.toMap
-      ast.substitute(subsitutions)
+      val substitutions = maybeSources.flatten.toMap
+      ast.substitute(substitutions)
     }
   }
 
