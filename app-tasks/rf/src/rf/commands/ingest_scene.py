@@ -21,13 +21,14 @@ def ingest_scene(scene_id):
     """
     logger.info("Converting scene to COG: %s", scene_id)
     scene = Scene.from_id(scene_id)
-    scene.ingestStatus = 'INGESTING'
-    scene.update()
-    image_locations = [(x.sourceUri, x.filename) for x in sorted(
-        scene.images, key=lambda x: io.sort_key(scene.datasource, x.bands[0]))]
-    io.create_cog(image_locations, scene)
+    # scene.ingestStatus = 'INGESTING'
+    # scene.update()
+    # image_locations = [(x.sourceUri, x.filename) for x in sorted(
+    #     scene.images, key=lambda x: io.sort_key(scene.datasource, x.bands[0]))]
+    # io.create_cog(image_locations, scene)
+    # logger.info('Gonna try writing metadata for %s', scene.id)
     metadata_to_postgres(scene.id)
-    notify_for_scene_ingest_status(scene.id)
+    # notify_for_scene_ingest_status(scene.id)
 
 
 def metadata_to_postgres(scene_id):
@@ -43,11 +44,13 @@ def metadata_to_postgres(scene_id):
         scene_id
     ]
 
-    logger.debug('Bash command to store histogram: %s', ' '.join(bash_cmd))
-    running_cmd = subprocess.Popen(bash_cmd)
-    running_cmd.communicate()
+    logger.info('Bash command to store histogram: %s', ' '.join(bash_cmd))
+    running_cmd = subprocess.Popen(bash_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = running_cmd.communicate()
     logger.info('Successfully completed metadata postgres write for scene %s',
                 scene_id)
+    logger.info('Stdout was: %s', stdout)
+    logger.info('Stderr was: %s', stderr)
     return True
 
 
