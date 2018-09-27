@@ -21,14 +21,14 @@ def ingest_scene(scene_id):
     """
     logger.info("Converting scene to COG: %s", scene_id)
     scene = Scene.from_id(scene_id)
-    # scene.ingestStatus = 'INGESTING'
-    # scene.update()
-    # image_locations = [(x.sourceUri, x.filename) for x in sorted(
-    #     scene.images, key=lambda x: io.sort_key(scene.datasource, x.bands[0]))]
-    # io.create_cog(image_locations, scene)
-    # logger.info('Gonna try writing metadata for %s', scene.id)
+    scene.ingestStatus = 'INGESTING'
+    scene.update()
+    image_locations = [(x.sourceUri, x.filename) for x in sorted(
+        scene.images, key=lambda x: io.sort_key(scene.datasource, x.bands[0]))]
+    io.create_cog(image_locations, scene)
+    logger.info('Gonna try writing metadata for %s', scene.id)
     metadata_to_postgres(scene.id)
-    # notify_for_scene_ingest_status(scene.id)
+    notify_for_scene_ingest_status(scene.id)
 
 
 def metadata_to_postgres(scene_id):
