@@ -36,7 +36,7 @@ import java.net.URI
 import java.util.UUID
 
 class MosaicService(
-    interpreter: BufferingInterpreter = BufferingInterpreter.DEFAULT
+                     interpreter: BufferingInterpreter = BufferingInterpreter.DEFAULT
 )(implicit t: Timer[IO])
     extends Http4sDsl[IO]
     with RollbarNotifier
@@ -48,7 +48,7 @@ class MosaicService(
   final val eval = MamlTms.identity[ProjectNode](interpreter)
 
   object TokenQueryParamMatcher
-      extends QueryParamDecoderMatcher[String]("token")
+    extends QueryParamDecoderMatcher[String]("token")
   object RedBandOptionalQueryParamMatcher
       extends OptionalQueryParamDecoderMatcher[Int]("redBand")
   object GreenBandOptionalQueryParamMatcher
@@ -130,7 +130,7 @@ class MosaicService(
                 BadRequest(e.toString)
             }
           }
-        ).value flatMap {
+          ).value flatMap {
           case Left(e)     => BadRequest(e.getMessage)
           case Right(resp) => resp
         }

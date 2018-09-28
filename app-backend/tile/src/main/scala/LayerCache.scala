@@ -67,11 +67,11 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
 
   val cacheConfig = CommonConfig.memcached
 
-  def maxZoomForLayers(layerIds: Set[UUID])(
-      implicit ec: ExecutionContext): OptionT[Future, Map[String, Int]] = {
+  def maxnForLayers(layerIds: Set[UUID])(
+    implicit ec: ExecutionContext): OptionT[Future, Map[String, Int]] = {
     val cacheKey = s"max-zoom-for-layer-${CryptoUtils.sha1(layerIds.mkString)}"
     rfCache.cachingOptionT(cacheKey,
-                           doCache = cacheConfig.layerAttributes.enabled)(
+      doCache = cacheConfig.layerAttributes.enabled)(
       OptionT(
         timedFuture("layer-max-zoom-store")(
           store.maxZoomsForLayers(layerIds.map(_.toString)))
@@ -154,9 +154,9 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
               Try {
                 S3CollectionLayerReader(store)
                   .query[SpatialKey,
-                         MultibandTile,
-                         TileLayerMetadata[SpatialKey]](
-                    LayerId(layerId.toString, zoom))
+                  MultibandTile,
+                  TileLayerMetadata[SpatialKey]](
+                  LayerId(layerId.toString, zoom))
                   .where(Intersects(extent))
                   .result
                   .stitch
@@ -190,9 +190,9 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
               Try {
                 S3CollectionLayerReader(store)
                   .query[SpatialKey,
-                         MultibandTile,
-                         TileLayerMetadata[SpatialKey]](
-                    LayerId(layerId.toString, zoom))
+                  MultibandTile,
+                  TileLayerMetadata[SpatialKey]](
+                  LayerId(layerId.toString, zoom))
                   .where(Intersects(extent))
                   .result
                   .stitch
@@ -217,11 +217,11 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
 
   /** Calculate the histogram for the least resolute zoom level to automatically render tiles */
   def modelLayerGlobalHistogram(
-      toolRunId: UUID,
-      subNode: Option[UUID],
-      user: User,
-      voidCache: Boolean = false
-  ): OptionT[Future, Histogram[Double]] = {
+                                 toolRunId: UUID,
+                                 subNode: Option[UUID],
+                                 user: User,
+                                 voidCache: Boolean = false
+                               ): OptionT[Future, Histogram[Double]] = {
     val cacheKey = s"histogram-${toolRunId}-${subNode.getOrElse("")}-${user.id}"
 
     if (voidCache) rfCache.delete(cacheKey)
@@ -230,9 +230,9 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
         toolRun <- LayerCache.toolRun(toolRunId, user, voidCache)
         _ <- OptionT.liftF(logger.debug("Got tool run").pure[Future])
         (_, ast) <- LayerCache.toolEvalRequirements(toolRunId,
-                                                    subNode,
-                                                    user,
-                                                    voidCache)
+          subNode,
+          user,
+          voidCache)
         _ <- OptionT.liftF(logger.debug("Got ast").pure[Future])
         updatedAst <- OptionT(RelabelAst.cogScenes(ast))
         _ <- OptionT.liftF(logger.debug("Updated ast").pure[Future])
@@ -252,7 +252,9 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
         )
         _ <- OptionT.liftF(logger.debug("Got literal AST").pure[Future])
         tile <- OptionT.fromOption[Future](
-          NaiveInterpreter.DEFAULT(literalAst).andThen({ _.as[Tile] }) match {
+          NaiveInterpreter.DEFAULT(literalAst).andThen({
+            _.as[Tile]
+          }) match {
             case Valid(tile) => Some(tile)
             case Invalid(e) =>
               e.map { s =>
@@ -283,30 +285,32 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
 
   /** Calculate all of the prerequisites to evaluation of an AST over a set of tile sources */
   def toolEvalRequirements(
-      toolRunId: UUID,
-      subNode: Option[UUID],
-      user: User,
-      voidCache: Boolean = false
-  ): OptionT[Future, (Timestamp, MapAlgebraAST)] = {
+                            toolRunId: UUID,
+                            subNode: Option[UUID],
+                            user: User,
+                            voidCache: Boolean = false
+                          ): OptionT[Future, (Timestamp, MapAlgebraAST)] = {
     for {
       toolRun <- LayerCache.toolRun(toolRunId, user)
-      ast <- OptionT.fromOption[Future](
-        toolRun.executionParameters.as[MapAlgebraAST].toOption)
+      ast <- OptionT.fromOption[Future] {
+        val z = toolRun.executionParameters.as[MapAlgebraAST].toOption
+        z
+      }
       subAst <- OptionT.fromOption[Future](subNode match {
         case Some(id) => ast.find(id)
-        case None     => Some(ast)
+        case None => Some(ast)
       })
     } yield (toolRun.modifiedAt, subAst)
   }
 
   /** Calculate all of the prerequisites to evaluation of an AST over a set of tile sources */
   def toolRunColorMap(
-      toolRunId: UUID,
-      subNode: Option[UUID],
-      user: User,
-      colorRamp: ColorRamp,
-      colorRampName: String
-  ): OptionT[Future, ColorMap] = traceName("LayerCache.toolRunColorMap") {
+                       toolRunId: UUID,
+                       subNode: Option[UUID],
+                       user: User,
+                       colorRamp: ColorRamp,
+                       colorRampName: String
+                     ): OptionT[Future, ColorMap] = traceName("LayerCache.toolRunColorMap") {
     val cacheKey =
       s"colormap-$toolRunId-${subNode.getOrElse("")}-${user.id}-${colorRampName}"
     rfCache.cachingOptionT(cacheKey, doCache = cacheConfig.tool.enabled) {
@@ -317,7 +321,7 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
             val metadata: Option[NodeMetadata] = ast.metadata
             OptionT
               .fromOption[Future](
-                metadata.flatMap(_.classMap).map(_.toColorMap))
+              metadata.flatMap(_.classMap).map(_.toColorMap))
               .orElse({
                 for {
                   md <- OptionT.fromOption[Future](metadata)
@@ -333,8 +337,8 @@ object LayerCache extends Config with LazyLogging with KamonTrace {
               .orElse({
                 for {
                   hist <- LayerCache.modelLayerGlobalHistogram(toolRunId,
-                                                               subNode,
-                                                               user)
+                    subNode,
+                    user)
                 } yield colorRamp.toColorMap(hist)
               })
           }

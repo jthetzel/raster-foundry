@@ -1,4 +1,7 @@
-package com.azavea.rf.tile
+package com.azavea.rf
+
+import com.azavea.rf.backsplash.maml.BacksplashMamlAdapter
+import com.azavea.rf.tool.ast._
 
 import com.azavea.rf.tool._
 
@@ -11,16 +14,20 @@ import geotrellis.raster.histogram.Histogram
 import scala.math.abs
 import java.util.Arrays.binarySearch
 
-package object image {
+package object backsplash {
+
+  implicit class MapAlgebraAstConversion(val rfmlAst: MapAlgebraAST) extends BacksplashMamlAdapter
+
+
   implicit class renderTileWithDefinition(tile: Tile) {
 
     /** This function produces a function from cell value to color appropriate to the color
-      *  space defined by the provided [[RenderDefinition]]
+      * space defined by the provided [[RenderDefinition]]
       */
     private def buildFn(definition: RenderDefinition): Double => RGBA =
       definition.scale match {
         case Continuous | Sequential | Diverging => continuous(definition)
-        case Qualitative(fallback)               => qual(definition, fallback)
+        case Qualitative(fallback) => qual(definition, fallback)
       }
 
     /** RGB color interpolation logic */
@@ -45,12 +52,12 @@ package object image {
           // MIN VALUE
           definition.clip match {
             case ClipNone | ClipRight => colors(0)
-            case ClipLeft | ClipBoth  => 0x00000000
+            case ClipLeft | ClipBoth => 0x00000000
           }
         } else if (abs(insertionPoint) - 1 == breaks.size) {
           // MAX VALUE
           definition.clip match {
-            case ClipNone | ClipLeft  => colors.last
+            case ClipNone | ClipLeft => colors.last
             case ClipRight | ClipBoth => 0x00000000
           }
         } else if (insertionPoint < 0) {
@@ -80,12 +87,12 @@ package object image {
         // MIN VALUE
         definition.clip match {
           case ClipNone | ClipRight => fallback
-          case ClipLeft | ClipBoth  => 0x00000000
+          case ClipLeft | ClipBoth => 0x00000000
         }
       } else if (abs(insertionPoint) - 1 == breaks.size) {
         // MAX VALUE
         definition.clip match {
-          case ClipNone | ClipLeft  => fallback
+          case ClipNone | ClipLeft => fallback
           case ClipRight | ClipBoth => 0x00000000
         }
       } else if (insertionPoint < 0) {
@@ -116,3 +123,4 @@ package object image {
     }
   }
 }
+
